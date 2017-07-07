@@ -38,7 +38,7 @@ class App(QFrame):
         self.initUI()
         self.wormholeService = WormholeService(self.sending_callback, self.receving_callback)
 
-    errorUpdateAccumulator = ""
+    sendErrorUpdateAccumulator = ""
     def sending_callback(self, update):
         print(update)
         infos = update.get("data")
@@ -52,27 +52,37 @@ class App(QFrame):
             if info.startswith(self.codeUpdatePrefix):
                 code = info[len(self.codeUpdatePrefix):]
                 self.send_status_label.setText(code)
-                self.errorUpdateAccumulator = ""
+                self.sendErrorUpdateAccumulator = ""
 
             elif info.startswith(self.transferErrorUpdatePrefix):
                 error = info[len(self.transferErrorUpdatePrefix):]
                 self.send_status_label.setText(error)
-                self.errorUpdateAccumulator = ""
+                self.sendErrorUpdateAccumulator = ""
 
             elif info.startswith(self.errorUpdatePrefix):
-                self.errorUpdateAccumulator = info[len(self.errorUpdatePrefix):]
+                self.sendErrorUpdateAccumulator = info[len(self.errorUpdatePrefix):]
 
-            elif self.errorUpdateAccumulator:
-                self.errorUpdateAccumulator += " " + info
-                self.send_status_label.setText(self.errorUpdateAccumulator)
+            elif self.sendErrorUpdateAccumulator:
+                self.sendErrorUpdateAccumulator += " " + info
+                self.send_status_label.setText(self.sendErrorUpdateAccumulator)
 
 
-
+    receiveErrorUpdateAccumulator = ""
     def receving_callback(self, update):
         print(update)
+        infos = update.get("data")
         progress = update.get("progress")
         if progress:
             self.receive_progress_bar.setProperty("value", progress)
+            return
+
+        for info in infos:
+            if info.startswith(self.errorUpdatePrefix):
+                self.receiveErrorUpdateAccumulator = info[len(self.errorUpdatePrefix):]
+
+            elif self.receiveErrorUpdateAccumulator:
+                self.receiveErrorUpdateAccumulator += " " + info
+                self.receive_status_label.setText(self.receiveErrorUpdateAccumulator)
 
 
 
