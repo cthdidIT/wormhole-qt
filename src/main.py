@@ -30,13 +30,15 @@ class RespondError(Exception):
 class App(QFrame):
     APPID = "wormhole-qt.com"
     codeUpdatePrefix = "Wormhole code is: "
+    transferErrorUpdatePrefix = "TransferError:"
+    errorUpdatePrefix = "ERROR:"
 
     def __init__(self):
         super().__init__()
         self.initUI()
         self.wormholeService = WormholeService(self.sending_callback, self.receving_callback)
 
-
+    errorUpdateAccumulator = ""
     def sending_callback(self, update):
         print(update)
         infos = update.get("data")
@@ -45,12 +47,25 @@ class App(QFrame):
             self.send_progress_bar.setProperty("value", progress)
             return
 
+
         for info in infos:
             if info.startswith(self.codeUpdatePrefix):
-                print("helo")
                 code = info[len(self.codeUpdatePrefix):]
-                print(code)
                 self.send_status_label.setText(code)
+                self.errorUpdateAccumulator = ""
+
+            elif info.startswith(self.transferErrorUpdatePrefix):
+                error = info[len(self.transferErrorUpdatePrefix):]
+                self.send_status_label.setText(error)
+                self.errorUpdateAccumulator = ""
+
+            elif info.startswith(self.errorUpdatePrefix):
+                self.errorUpdateAccumulator = info[len(self.errorUpdatePrefix):]
+
+            elif self.errorUpdateAccumulator:
+                self.errorUpdateAccumulator += " " + info
+                self.send_status_label.setText(self.errorUpdateAccumulator)
+
 
 
     def receving_callback(self, update):
