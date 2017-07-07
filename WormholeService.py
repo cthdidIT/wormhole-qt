@@ -12,14 +12,32 @@ class WormholeService(object):
         self._sender_callback = sender_callback
         self._receiver_callback = receiver_callback
 
+    def handle_status(self, split, cb):
+        progress = int(split[0][:-1])
+        cb(dict(progress=progress, data=split[1:]))
+
     def send(self, path):
         cmd = ["wormhole", "send", path]
         p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
+                             stderr=subprocess.STDOUT,
+                             bufsize=1,
+                             universal_newlines=True)
 
         for line in iter(p.stdout.readline, b''):
-            self._sender_callback(str(line.rstrip()))
+            l = str(line.rstrip())
+            if l != '':
+                if l.lower().startswith('confirmation received'):
+                    break
+                else:
+                    split = l.split('|')
+                    if split[0].endswith('%'):
+                        self.handle_status(split, self._sender_callback)
+                    else:
+                        self._sender_callback(dict(data=split))
+
+        return_code = p.poll()
+        self._receiver_callback(dict(data=return_code))
 
     def receive(self, code):
         cmd = ["wormhole", "receive", code]
@@ -38,9 +56,17 @@ class WormholeService(object):
                 if lower.startswith("receiving file"):
                     p.stdin.write('y\n')
                     p.stdin.flush()
+                elif lower.startswith("received file written"):
+                    break
                 else:
                     split = l.split('|')
-                    self._receiver_callback(split)
+                    if split[0].endswith('%'):
+                        self.handle_status(split, self._receiver_callback)
+                    else:
+                        self._receiver_callback(dict(data=split))
+
+        return_code = p.poll()
+        self._receiver_callback(dict(data=return_code))
 
 
 if __name__ == '__main__':
