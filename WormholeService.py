@@ -12,7 +12,7 @@ class WormholeService(object):
         self._sender_callback = sender_callback
         self._receiver_callback = receiver_callback
 
-    def handle_status(self, split, cb):
+    def _handle_status(self, split, cb):
         progress = int(split[0][:-1])
         cb(dict(progress=progress, data=split[1:]))
 
@@ -32,7 +32,7 @@ class WormholeService(object):
                 else:
                     split = l.split('|')
                     if split[0].endswith('%'):
-                        self.handle_status(split, self._sender_callback)
+                        self._handle_status(split, self._sender_callback)
                     else:
                         self._sender_callback(dict(data=split))
 
@@ -61,7 +61,7 @@ class WormholeService(object):
                 else:
                     split = l.split('|')
                     if split[0].endswith('%'):
-                        self.handle_status(split, self._receiver_callback)
+                        self._handle_status(split, self._receiver_callback)
                     else:
                         self._receiver_callback(dict(data=split))
 
