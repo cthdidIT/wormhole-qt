@@ -39,8 +39,8 @@ class WormholeService(object):
         return_code = p.poll()
         self._receiver_callback(dict(data=return_code))
 
-    def receive(self, code):
-        cmd = ["wormhole", "receive", code]
+    def receive(self, code, path="."):
+        cmd = ["cd %s && wormhole" % path, "receive", code]
 
         p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
