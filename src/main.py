@@ -14,7 +14,7 @@ last edited: January 2015
 """
 
 import sys
-from os.path import isfile
+from os.path import (isfile, expanduser)
 from threading import Thread
 
 from PyQt5.QtWidgets import (QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication,
@@ -216,7 +216,7 @@ class App(QFrame):
 
         browseButton = QPushButton("Browse")
         pathLabel = QLabel("Download:")
-        receivePath = QLineEdit("$HOME/Download")
+        receivePath = QLineEdit(expanduser('~')+"/Download")
         self.receive_path = receivePath
         browseButton.clicked.connect(lambda: self.handleBrowse(receivePath, dirsOnly=True))
         receivePath.setMinimumWidth(100)
