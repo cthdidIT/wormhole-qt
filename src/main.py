@@ -19,6 +19,7 @@ from threading import Thread
 
 from PyQt5.QtWidgets import (QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication,
                              QFileDialog, QProgressBar)
+from PyQt5 import QtGui
 
 from WormholeService import WormholeService
 
@@ -130,6 +131,12 @@ class App(QFrame):
     def handleBrowse(self, lineEdit, dirsOnly=False):
         self.openFileNameDialog(lineEdit, dirsOnly)
 
+    def handleCopy(self):
+        print("helo")
+        cb = QtGui.QGuiApplication.clipboard()
+        cb.clear(mode=cb.Clipboard)
+        cb.setText(self.send_status_label.text(), mode=cb.Clipboard)
+
     def initSendBox(self):
         box = QVBoxLayout()
 
@@ -163,29 +170,33 @@ class App(QFrame):
         secondRow = QHBoxLayout()
         secondRow.addStretch(1)
         secondRow.addWidget(sendButton)
-        secondRow.addStretch(1)
 
         progressBar = QProgressBar()
         progressBar.setProperty("value", 0)
         self.send_progress_bar = progressBar
 
         statusLable = QLabel("")
+        copyButton = QPushButton("Copy")
+        copyButton.clicked.connect(self.handleCopy)
         self.send_status_label = statusLable
         statusRow = QHBoxLayout()
         statusRow.addStretch(1)
         statusRow.addWidget(statusLable)
-        statusRow.addStretch(1)
+        statusRow.addWidget(copyButton)
+
 
         progressRow = QHBoxLayout()
         progressRow.addStretch(1)
         progressRow.addWidget(progressBar)
         progressRow.addStretch(1)
 
+        box.addStretch(1)
         box.addLayout(headerRow)
         box.addLayout(firstRow)
         box.addLayout(secondRow)
         box.addLayout(statusRow)
         box.addLayout(progressRow)
+        box.addStretch(1)
 
         frame = QFrame()
         frame.setLayout(box)
@@ -248,11 +259,13 @@ class App(QFrame):
         receiveProgressRow.addWidget(progressBar)
         receiveProgressRow.addStretch(1)
 
+        box.addStretch(1)
         box.addLayout(headerRow)
         box.addLayout(pathRow)
         box.addLayout(codeRow)
         box.addLayout(statusRow)
         box.addLayout(receiveProgressRow)
+        box.addStretch(1)
 
         frame = QFrame()
         frame.setLayout(box)
