@@ -14,10 +14,14 @@ last edited: January 2015
 """
 
 import sys
-from threading import Thread
-from PyQt5.QtWidgets import (QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication, QFileDialog, QProgressBar)
 from os.path import isfile
+from threading import Thread
+
+from PyQt5.QtWidgets import (QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication,
+                             QFileDialog, QProgressBar)
+
 from WormholeService import WormholeService
+
 
 class RespondError(Exception):
     def __init__(self, response):
