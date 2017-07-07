@@ -15,13 +15,9 @@ last edited: January 2015
 
 import sys
 from threading import Thread
-from PyQt5.QtWidgets import (QWidget, QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication, QFileDialog)
-from wormhole import (create, util)
-from twisted.internet import reactor
-
-from wormhole.transit import (TransitSender, TransitReceiver)
-
-from wormhole.cli.public_relay import RENDEZVOUS_RELAY
+from PyQt5.QtWidgets import (QFrame, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QApplication, QFileDialog, QProgressBar)
+from os.path import isfile
+from WormholeService import WormholeService
 
 class RespondError(Exception):
     def __init__(self, response):
@@ -29,20 +25,36 @@ class RespondError(Exception):
 
 class App(QFrame):
     APPID = "wormhole-qt.com"
-    relay_url = RENDEZVOUS_RELAY
-    _tor = None
-    _timing = {}
-    _reactor = reactor
+    codeUpdatePrefix = "Wormhole code is: "
 
     def __init__(self):
         super().__init__()
-
         self.initUI()
+        self.wormholeService = WormholeService(self.sending_callback, self.receving_callback)
 
-        self.wormhole = create(self.APPID, self.relay_url,
-                   self._reactor,
-                   tor=self._tor,
-                   timing=self._timing)
+
+    def sending_callback(self, update):
+        print(update)
+        infos = update.get("data")
+        progress = update.get("progress")
+        if progress:
+            self.send_progress_bar.setProperty("value", progress)
+            return
+
+        for info in infos:
+            if info.startswith(self.codeUpdatePrefix):
+                print("helo")
+                code = info[len(self.codeUpdatePrefix):]
+                print(code)
+                self.send_status_label.setText(code)
+
+
+    def receving_callback(self, update):
+        print(update)
+        progress = update.get("progress")
+        if progress:
+            self.receive_progress_bar.setProperty("value", progress)
+
 
 
     def dragEnterEvent(self, event):
@@ -53,14 +65,12 @@ class App(QFrame):
 
     def dropEvent(self, e):
         if e.mimeData().hasUrls:
-            print(e.mimeData().urls()[0].toString())
-            self.pathField.setText(e.mimeData().urls()[0].toString())
-            for url in e.mimeData().urls():
-                print(url)
+            file_path = e.mimeData().urls()[0].toLocalFile()
+            self.path_field.setText(file_path)
 
     def initUI(self):
         title = QLabel("Wormhole", self)
-        #self.setStyleSheet("background-color: rgb(200,200,200); margin:5px; border:1px solid rgb(0, 0, 0); ")
+        self.setStyleSheet("background-color: rgb(200,200,200); margin:5px; border:1px solid rgb(0, 0, 0); ")
 
         vbox = QVBoxLayout()
         vbox.addStretch(5)
@@ -77,58 +87,18 @@ class App(QFrame):
         self.setAcceptDrops(True)
         self.show()
 
-
     def handleSend(self):
-        print("Send")
-        # s = TransitSender(RENDEZVOUS_RELAY)
-        # my_direct_hints = yield s.get_connection_hints()
-        # print(my_direct_hints)
-        # b = util.dict_to_bytes(my_direct_hints)
-
-        #self.wormhole.allocate_code()
-        self.wormhole.set_code("wit")
-        #code = yield w.get_code()
-        #print("code:", code)
-        self.wormhole.send_message(b"send helo")
-        inbound = yield self.wormhole.get_message()
-        print(inbound)
-        yield self.wormhole.close()
-        #dump = util.bytes_to_dict(inbound)
-
-        # s.add_connection_hints(dump)
-        # s.set_transit_key(self.APPID + "/tjoptawoo")
-        # rp = yield s.connect()
-        # rp.send_record(b"Sender sends")
-        # them = yield rp.receive_record()
-        # print("Sender" + them)
-        # yield rp.close()
-
+        file_path = self.path_field.displayText()
+        if isfile(file_path):
+            t = Thread(target=lambda: self.wormholeService.send(file_path))
+            t.daemon = True
+            t.start()
 
 
     def handleReceive(self):
-        print("Receive")
-        # s = TransitReceiver(RENDEZVOUS_RELAY)
-        # my_direct_hints = yield s.get_connection_hints()
-        # print(my_direct_hints)
-        # b = util.dict_to_bytes(my_direct_hints)
-
-        # self.wormhole.allocate_code()
-        self.wormhole.set_code("wit")
-        # code = yield w.get_code()
-        # print("code:", code)
-        self.wormhole.send_message(b"receive helo")
-        inbound = yield self.wormhole.get_message()
-        print(inbound)
-        yield self.wormhole.close()
-        #dump = util.bytes_to_dict(inbound)
-
-        # s.add_connection_hints(dump)
-        # s.set_transit_key(self.APPID + "/tjoptawoo")
-        # rp = yield s.connect()
-        # rp.send_record(b"receiver send")
-        # them = yield rp.receive_record()
-        # print("Receiver" + them)
-        # yield rp.close()
+        t = Thread(target=lambda: self.wormholeService.receive(self.code_field.displayText()))
+        t.daemon = True
+        t.start()
 
 
     def handleBrowse(self):
@@ -147,9 +117,10 @@ class App(QFrame):
 
         label = QLabel("Path:")
         pathField = QLineEdit()
-        self.pathField = pathField
+        self.send_path = pathField
         browseButton = QPushButton("Browse")
         browseButton.clicked.connect(self.handleBrowse)
+        self.path_field = pathField
 
         firstRow = QHBoxLayout()
         firstRow.addStretch(1)
@@ -166,10 +137,27 @@ class App(QFrame):
         secondRow.addWidget(sendButton)
         secondRow.addStretch(1)
 
+        progressBar = QProgressBar()
+        progressBar.setTextVisible(False)
+        self.send_progress_bar = progressBar
+
+        statusLable = QLabel("")
+        self.send_status_label = statusLable
+        statusRow = QHBoxLayout()
+        statusRow.addStretch(1)
+        statusRow.addWidget(statusLable)
+        statusRow.addStretch(1)
+
+        progressRow = QHBoxLayout()
+        progressRow.addStretch(1)
+        progressRow.addWidget(progressBar)
+        progressRow.addStretch(1)
 
         box.addLayout(headerRow)
         box.addLayout(firstRow)
         box.addLayout(secondRow)
+        box.addLayout(statusRow)
+        box.addLayout(progressRow)
 
         return box
 
@@ -184,14 +172,15 @@ class App(QFrame):
         headerRow.addStretch(1)
 
         label = QLabel("Path:")
-        pathField = QLineEdit()
+        code_field = QLineEdit()
+        self.code_field = code_field
 
         browseButton = QPushButton("Browse")
 
         firstRow = QHBoxLayout()
         firstRow.addStretch(1)
         firstRow.addWidget(label)
-        firstRow.addWidget(pathField)
+        firstRow.addWidget(code_field)
         firstRow.addWidget(browseButton)
         firstRow.addStretch(1)
 
@@ -203,9 +192,27 @@ class App(QFrame):
         secondRow.addWidget(receiveButton)
         secondRow.addStretch(1)
 
+        receiveStatusLabel = QLabel("")
+        self.receive_status_label = receiveStatusLabel
+        statusRow = QHBoxLayout()
+        statusRow.addStretch(1)
+        statusRow.addWidget(receiveStatusLabel)
+        statusRow.addStretch(1)
+
+        progressBar = QProgressBar()
+        progressBar.setTextVisible(False)
+        self.receive_progress_bar = progressBar
+
+        receiveProgressRow = QHBoxLayout()
+        receiveProgressRow.addStretch(1)
+        receiveProgressRow.addWidget(progressBar)
+        receiveProgressRow.addStretch(1)
+
         box.addLayout(headerRow)
         box.addLayout(firstRow)
         box.addLayout(secondRow)
+        box.addLayout(statusRow)
+        box.addLayout(receiveProgressRow)
 
         return box
 
@@ -233,18 +240,10 @@ class App(QFrame):
         if fileName:
             print(fileName)
 
-def run_QTApp():
-    app = QApplication(sys.argv)
-    ex = App()
-    ex.handleSend()
-    sys.exit(app.exec_())
-
 
 
 if __name__ == '__main__':
-    thread = Thread(target=run_QTApp)
-    thread.start()
-    print("Runnig reactor")
-    reactor.run()
-
+    app = QApplication(sys.argv)
+    ex = App()
+    sys.exit(app.exec_())
 
