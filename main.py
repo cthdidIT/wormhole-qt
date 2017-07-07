@@ -69,15 +69,12 @@ class App(QFrame):
             self.path_field.setText(file_path)
 
     def initUI(self):
-        title = QLabel("Wormhole", self)
-        self.setStyleSheet("background-color: rgb(200,200,200); margin:5px; border:1px solid rgb(0, 0, 0); ")
 
-        vbox = QVBoxLayout()
+        vbox = QHBoxLayout()
         vbox.addStretch(5)
-        vbox.addWidget(title)
-        vbox.addLayout(self.initSendBox())
+        vbox.addWidget(self.initSendBox())
         vbox.addStretch(1)
-        vbox.addLayout(self.initReceiveBox())
+        vbox.addWidget(self.initReceiveBox())
         vbox.addStretch(5)
 
         self.setLayout(vbox)
@@ -96,16 +93,17 @@ class App(QFrame):
 
 
     def handleReceive(self):
-        t = Thread(target=lambda: self.wormholeService.receive(self.code_field.displayText()))
+        t = Thread(target=lambda: self.wormholeService.receive(self.code_field.displayText(), self.receive_path.displayText()))
         t.daemon = True
         t.start()
 
 
-    def handleBrowse(self):
-        self.openFileNameDialog()
+    def handleBrowse(self, lineEdit, dirsOnly=False):
+        self.openFileNameDialog(lineEdit, dirsOnly)
 
     def initSendBox(self):
         box = QVBoxLayout()
+
 
         headerText = QLabel("Send")
 
@@ -117,9 +115,10 @@ class App(QFrame):
 
         label = QLabel("Path:")
         pathField = QLineEdit()
+        pathField.setMinimumWidth(100)
         self.send_path = pathField
         browseButton = QPushButton("Browse")
-        browseButton.clicked.connect(self.handleBrowse)
+        browseButton.clicked.connect(lambda: self.handleBrowse(pathField))
         self.path_field = pathField
 
         firstRow = QHBoxLayout()
@@ -138,7 +137,7 @@ class App(QFrame):
         secondRow.addStretch(1)
 
         progressBar = QProgressBar()
-        progressBar.setTextVisible(False)
+        progressBar.setProperty("value", 0)
         self.send_progress_bar = progressBar
 
         statusLable = QLabel("")
@@ -159,7 +158,11 @@ class App(QFrame):
         box.addLayout(statusRow)
         box.addLayout(progressRow)
 
-        return box
+        frame = QFrame()
+        frame.setLayout(box)
+        frame.setLineWidth(10)
+        frame.setFrameStyle(QFrame.StyledPanel)
+        return frame
 
     def initReceiveBox(self):
         box = QVBoxLayout()
@@ -171,26 +174,34 @@ class App(QFrame):
         headerRow.addWidget(headerText)
         headerRow.addStretch(1)
 
-        label = QLabel("Path:")
+        browseButton = QPushButton("Browse")
+        pathLabel = QLabel("Download:")
+        receivePath = QLineEdit("$HOME/Download")
+        self.receive_path = receivePath
+        browseButton.clicked.connect(lambda: self.handleBrowse(receivePath, dirsOnly=True))
+        receivePath.setMinimumWidth(100)
+        pathRow = QHBoxLayout()
+        pathRow.addStretch(1)
+        pathRow.addWidget(pathLabel)
+        pathRow.addWidget(receivePath)
+        pathRow.addWidget(browseButton)
+        pathRow.addStretch(1)
+
+        label = QLabel("Code:")
         code_field = QLineEdit()
+        code_field.setMinimumWidth(100)
         self.code_field = code_field
 
-        browseButton = QPushButton("Browse")
-
-        firstRow = QHBoxLayout()
-        firstRow.addStretch(1)
-        firstRow.addWidget(label)
-        firstRow.addWidget(code_field)
-        firstRow.addWidget(browseButton)
-        firstRow.addStretch(1)
 
         receiveButton = QPushButton("Receive")
         receiveButton.clicked.connect(self.handleReceive)
 
-        secondRow = QHBoxLayout()
-        secondRow.addStretch(1)
-        secondRow.addWidget(receiveButton)
-        secondRow.addStretch(1)
+        codeRow = QHBoxLayout()
+        codeRow.addWidget(label)
+        codeRow.addWidget(code_field)
+        codeRow.addWidget(receiveButton)
+
+
 
         receiveStatusLabel = QLabel("")
         self.receive_status_label = receiveStatusLabel
@@ -200,7 +211,7 @@ class App(QFrame):
         statusRow.addStretch(1)
 
         progressBar = QProgressBar()
-        progressBar.setTextVisible(False)
+        progressBar.setProperty("value", 0)
         self.receive_progress_bar = progressBar
 
         receiveProgressRow = QHBoxLayout()
@@ -209,20 +220,28 @@ class App(QFrame):
         receiveProgressRow.addStretch(1)
 
         box.addLayout(headerRow)
-        box.addLayout(firstRow)
-        box.addLayout(secondRow)
+        box.addLayout(pathRow)
+        box.addLayout(codeRow)
         box.addLayout(statusRow)
         box.addLayout(receiveProgressRow)
 
-        return box
+        frame = QFrame()
+        frame.setLayout(box)
+        frame.setFrameStyle(QFrame.StyledPanel)
+        return frame
 
-    def openFileNameDialog(self):
+    def openFileNameDialog(self, lineEdit, dirsOnly = False):
         options = QFileDialog.Options()
-        options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "",
-                                                  "All Files (*);;Python Files (*.py)", options=options)
+        fileName = ""
+        if dirsOnly:
+            options |= QFileDialog.ShowDirsOnly
+            fileName = QFileDialog.getExistingDirectory(self, "Download folder", options=options)
+        else:
+            fileName, _ = QFileDialog.getOpenFileName(self, "File to send", "", options=options)
+
         if fileName:
             print(fileName)
+            lineEdit.setText(fileName)
 
     def openFileNamesDialog(self):
         options = QFileDialog.Options()

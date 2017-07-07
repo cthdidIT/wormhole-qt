@@ -40,13 +40,14 @@ class WormholeService(object):
         self._receiver_callback(dict(data=return_code))
 
     def receive(self, code, path="."):
-        cmd = ["cd %s && wormhole" % path, "receive", code]
+        cmd = ["wormhole", "receive", code]
 
         p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT,
                              stdin=subprocess.PIPE,
                              bufsize=1,
+                             cwd=path,
                              universal_newlines=True)
 
         for line in iter(p.stdout.readline, b''):
