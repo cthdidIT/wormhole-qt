@@ -84,7 +84,7 @@ class App(QFrame):
         self.setLayout(vbox)
 
         self.setGeometry(300, 300, 300, 150)
-        self.setWindowTitle('Buttons')
+        self.setWindowTitle('wormhole-qt')
         self.setAcceptDrops(True)
         self.show()
 
